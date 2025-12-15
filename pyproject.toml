@@ -1,0 +1,11 @@
+[project]
+name = "bq2bq-dbt-runner"
+version = "1.0.0"
+description = "Generic dbt runner for BigQuery with GCS model download and API callbacks"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "dbt-bigquery>=1.9.0",
+    "google-cloud-storage>=2.18.0",
+    "requests>=2.32.0",
+]

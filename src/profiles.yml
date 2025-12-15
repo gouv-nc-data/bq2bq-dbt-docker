@@ -1,0 +1,17 @@
+# dbt profiles for BigQuery
+# Uses OAuth authentication with GCP default credentials (Service Account)
+# Project is injected via GOOGLE_CLOUD_PROJECT by Terraform
+
+default:
+  target: prod
+  outputs:
+    prod:
+      type: bigquery
+      method: oauth
+      project: "{{ env_var('GOOGLE_CLOUD_PROJECT') }}"
+      # Dataset par défaut - chaque modèle peut le surcharger via config(schema='...')
+      dataset: "{{ env_var('BQ_DATASET', 'dbt_default') }}"
+      location: "{{ env_var('BQ_LOCATION', 'EU') }}"
+      threads: 4
+      timeout_seconds: 300
+      priority: interactive

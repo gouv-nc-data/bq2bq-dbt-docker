@@ -1,0 +1,12 @@
+name: 'generic_runner'
+version: '1.0.0'
+config-version: 2
+
+profile: 'default' # Doit matcher ton profiles.yml
+
+model-paths: ["models"] # C'est là que le script Python va déposer les fichiers
+
+models:
+  generic_runner:
+    # Config par défaut pour tout ce qui arrive
+    +materialized: table
