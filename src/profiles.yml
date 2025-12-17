@@ -13,5 +13,5 @@ default:
       dataset: "{{ env_var('BQ_DATASET', 'dbt_default') }}"
       location: "{{ env_var('BQ_LOCATION', 'EU') }}"
       threads: 4
-      timeout_seconds: 300
+      job_execution_timeout_seconds: 300
       priority: interactive
