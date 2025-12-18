@@ -8,14 +8,19 @@ FROM python:3.12-slim-trixie AS builder
 # Install uv
 COPY --from=ghcr.io/astral-sh/uv:0.9.17 /uv /uvx /bin/
 
+# Set environment variables for uv
+ENV UV_COMPILE_BYTECODE=1
+ENV UV_LINK_MODE=copy
+
 # Set working directory
 WORKDIR /app
 
 # Copy dependency files first for caching
-COPY pyproject.toml ./
+COPY pyproject.toml uv.lock README.md ./
 
-# Sync dependencies (creates .venv)
-RUN uv sync --frozen --no-dev
+# Sync dependencies using cache mount and skip project install for now
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-dev --no-install-project
 
 # =============================================================================
 # Runtime stage
@@ -25,6 +30,9 @@ FROM python:3.12-slim-trixie
 
 # Install uv for runtime (needed for dbt)
 COPY --from=ghcr.io/astral-sh/uv:0.9.17 /uv /uvx /bin/
+
+# Set bytecode compilation for faster startup
+ENV UV_COMPILE_BYTECODE=1
 
 WORKDIR /app
 
