@@ -16,6 +16,7 @@ import sys
 from pathlib import Path
 
 import requests
+import time
 from google.cloud import storage
 
 # =============================================================================
@@ -137,22 +138,34 @@ def get_model_meta(manifest: dict, unique_id: str) -> dict:
 
 
 def trigger_api_callback(api_param: str) -> bool:
-    """Send API callback for a successful model."""
+    """Send API callback for a successful model with retry logic."""
     if not API_CALLBACK_URL:
         logger.warning("API_CALLBACK_URL not set, skipping callback")
         return False
 
     url = f"{API_CALLBACK_URL.rstrip('/')}/api/automation/v1.0/datasets/{api_param}/publish/"
     headers = {"Authorization": f"apikey {API_TOKEN}"} if API_TOKEN else {}
+    
+    delays = [0, 3, 15]  # Impatience: immédiat, 3s, 15s
+    max_attempts = len(delays)
 
-    try:
-        response = requests.post(url, headers=headers, timeout=30)
-        response.raise_for_status()
-        logger.info(f"  ✓ API callback success: {api_param}")
-        return True
-    except requests.RequestException as e:
-        logger.error(f"  ✗ API callback failed for {api_param}: {e}")
-        return False
+    for attempt, delay in enumerate(delays, 1):
+        if delay > 0:
+            logger.info(f"  ... Retrying in {delay} seconds (attempt {attempt}/{max_attempts})")
+            time.sleep(delay)
+            
+        try:
+            response = requests.post(url, headers=headers, timeout=60)
+            response.raise_for_status()
+            logger.info(f"  ✓ API callback success: {api_param} (at attempt {attempt}/{max_attempts})")
+            return True
+        except requests.RequestException as e:
+            if attempt < max_attempts:
+                logger.warning(f"  ⚠ API callback attempt {attempt} failed for {api_param}: {e}")
+            else:
+                logger.error(f"  ✗ API callback failed for {api_param} after {max_attempts} attempts: {e}")
+    
+    return False
 
 def process_results() -> tuple[int, int]:
     """
