@@ -138,18 +138,17 @@ def trigger_api_callback(api_param: str) -> bool:
         logger.warning("API_CALLBACK_URL not set, skipping callback")
         return False
 
-    url = f"{API_CALLBACK_URL.rstrip('/')}/{api_param}"
-    headers = {"Authorization": f"Bearer {API_TOKEN}"} if API_TOKEN else {}
+    url = f"{API_CALLBACK_URL.rstrip('/')}/api/automation/v1.0/datasets/{api_param}/publish/"
+    headers = {"Authorization": f"apikey {API_TOKEN}"} if API_TOKEN else {}
 
     try:
-        response = requests.get(url, headers=headers, timeout=30)
+        response = requests.post(url, headers=headers, timeout=30)
         response.raise_for_status()
         logger.info(f"  ✓ API callback success: {api_param}")
         return True
     except requests.RequestException as e:
         logger.error(f"  ✗ API callback failed for {api_param}: {e}")
         return False
-
 
 def process_results() -> tuple[int, int]:
     """

@@ -77,7 +77,7 @@ flowchart LR
 ```python
 # Extrait du script
 token = os.environ.get("API_TOKEN")
-headers = {"Authorization": f"Bearer {token}"} if token else {}
+headers = {"Authorization": f"apikey {token}"} if token else {}
 ```
 
 > [!NOTE]
@@ -123,11 +123,11 @@ La liaison entre une requête SQL et l'API se fait via la configuration `meta` n
 {{ config(
     materialized='table',
     meta = {
-        "api_trigger_param": "users_dataset_v1" 
+        "api_trigger_param": "api_param" 
     }
 ) }}
 
--- Si api_trigger_param est présent, le script appellera : BASE_URL/users_dataset_v1
+-- Si api_trigger_param est présent, le script appellera : BASE_URL/api/automation/v1.0/datasets/{api_param}/publish/
 SELECT ...
 ```
 
@@ -179,7 +179,6 @@ Le déploiement est géré par un **module Terraform générique**.
 |----------|-------------|
 | `API_CALLBACK_URL` | L'URL de base de l'API de gestion |
 | `API_TOKEN` | Token d'authentification (injecté depuis Secret Manager) |
-| `GCS_BUCKET_NAME` | Bucket contenant les fichiers SQL |
 
 ### Planification
 
