@@ -39,11 +39,15 @@ TARGET_DIR = DBT_PROJECT_DIR / "target"
 # Logging (GCP structured)
 # =============================================================================
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='{"severity": "%(levelname)s", "message": "%(message)s"}',
-    stream=sys.stdout,
-)
+import google.cloud.logging
+from google.cloud.logging.handlers import StructuredLogHandler
+
+# Initialisation du client de logging (détecte l'environnement Cloud Run)
+client = google.cloud.logging.Client()
+# Configuration du handler structuré pour envoyer en JSON sur stdout
+handler = StructuredLogHandler()
+google.cloud.logging.handlers.setup_logging(handler)
+
 logger = logging.getLogger(__name__)
 
 
