@@ -17,6 +17,8 @@ from pathlib import Path
 
 import requests
 import time
+import google.cloud.logging
+import google.cloud.secretmanager
 from google.cloud import storage
 
 # =============================================================================
@@ -29,7 +31,22 @@ GCS_PREFIX = os.environ.get("GCS_PREFIX", "models/")
 
 # API Configuration
 API_CALLBACK_URL = os.environ.get("API_CALLBACK_URL", "")
-API_TOKEN = os.environ.get("API_TOKEN", "")
+API_TOKEN_SECRET = os.environ.get("API_TOKEN_SECRET", "")
+
+def get_secret(secret_name: str) -> str:
+    """Retrieve secret from Google Secret Manager."""
+    client = google.cloud.secretmanager.SecretManagerServiceClient()
+    response = client.access_secret_version(request={"name": secret_name})
+    return response.payload.data.decode("UTF-8").strip()
+
+if API_TOKEN_SECRET:
+    try:
+        API_TOKEN = get_secret(API_TOKEN_SECRET)
+    except Exception as e:
+        print(f"Error fetching secret {API_TOKEN_SECRET}: {e}")
+        API_TOKEN = os.environ.get("API_TOKEN", "")
+else:
+    API_TOKEN = os.environ.get("API_TOKEN", "")
 
 # dbt paths
 DBT_PROJECT_DIR = Path(__file__).parent
