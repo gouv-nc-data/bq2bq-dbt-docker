@@ -233,9 +233,18 @@ def process_results() -> tuple[int, int]:
 
 def main():
     """Main orchestration workflow."""
-    # Ensure GCP_PROJECT is set for dbt compatibility (handles Jinja strict evaluation)
+    # Ensure GCP and BQ env vars are set for dbt compatibility (handles Jinja strict evaluation)
+    # Project mapping
     if "GOOGLE_CLOUD_PROJECT" in os.environ and "GCP_PROJECT" not in os.environ:
         os.environ["GCP_PROJECT"] = os.environ["GOOGLE_CLOUD_PROJECT"]
+    elif "GCP_PROJECT" in os.environ and "GOOGLE_CLOUD_PROJECT" not in os.environ:
+        os.environ["GOOGLE_CLOUD_PROJECT"] = os.environ["GCP_PROJECT"]
+
+    # Dataset mapping
+    if "BQ_DATASET_ID" in os.environ and "BQ_DATASET" not in os.environ:
+        os.environ["BQ_DATASET"] = os.environ["BQ_DATASET_ID"]
+    elif "BQ_DATASET" in os.environ and "BQ_DATASET_ID" not in os.environ:
+        os.environ["BQ_DATASET_ID"] = os.environ["BQ_DATASET"]
 
     logger.info("=" * 60)
     logger.info("bq2bq-dbt-runner starting")
