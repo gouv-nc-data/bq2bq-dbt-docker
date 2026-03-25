@@ -233,6 +233,10 @@ def process_results() -> tuple[int, int]:
 
 def main():
     """Main orchestration workflow."""
+    # Ensure GCP_PROJECT is set for dbt compatibility (handles Jinja strict evaluation)
+    if "GOOGLE_CLOUD_PROJECT" in os.environ and "GCP_PROJECT" not in os.environ:
+        os.environ["GCP_PROJECT"] = os.environ["GOOGLE_CLOUD_PROJECT"]
+
     logger.info("=" * 60)
     logger.info("bq2bq-dbt-runner starting")
     logger.info("=" * 60)
