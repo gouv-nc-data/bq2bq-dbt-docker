@@ -10,7 +10,7 @@ default:
       method: oauth
       project: "{{ env_var('GOOGLE_CLOUD_PROJECT', env_var('GCP_PROJECT')) }}"
       # Dataset par défaut - chaque modèle peut le surcharger via config(schema='...')
-      dataset: "{{ env_var('BQ_DATASET_ID', env_var('BQ_DATASET', 'dbt_default')) }}"
+      dataset: "{{ env_var('BQ_DBT_TARGET_DATASET', env_var('BQ_DATASET', env_var('BQ_DATASET_ID', 'dbt_default'))) }}"
       location: "{{ env_var('BQ_LOCATION', 'EU') }}"
       threads: 4
       job_execution_timeout_seconds: 300
