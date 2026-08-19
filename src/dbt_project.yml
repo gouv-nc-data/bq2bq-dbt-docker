@@ -5,6 +5,9 @@ config-version: 2
 profile: 'default' # Doit matcher ton profiles.yml
 
 model-paths: ["models"] # C'est là que le script Python va déposer les fichiers
+macro-paths: ["macros"] # Macros expédiées via gs://<bucket>/<prefix>/macros/
+test-paths: ["tests"]   # Tests singuliers via gs://<bucket>/<prefix>/tests/
+seed-paths: ["seeds"]
 
 models:
   generic_runner:
