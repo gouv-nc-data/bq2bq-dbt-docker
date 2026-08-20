@@ -5,7 +5,7 @@ description = "Generic dbt runner for BigQuery with GCS model download and API c
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "dbt-bigquery>=1.9.0",
+    "dbt-bigquery>=1.10.3,<1.11",
     "google-cloud-logging>=3.13.0",
     "google-cloud-storage>=2.18.0",
     "google-cloud-secret-manager>=2.23.0",
