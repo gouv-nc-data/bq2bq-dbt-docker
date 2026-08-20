@@ -79,7 +79,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "dbt-bigquery", specifier = ">=1.9.0" },
+    { name = "dbt-bigquery", specifier = ">=1.10.3,<1.11" },
     { name = "google-cloud-logging", specifier = ">=3.13.0" },
     { name = "google-cloud-secret-manager", specifier = ">=2.23.0" },
     { name = "google-cloud-storage", specifier = ">=2.18.0" },
