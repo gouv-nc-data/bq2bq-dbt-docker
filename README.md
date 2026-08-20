@@ -105,11 +105,35 @@ sequenceDiagram
 
 ### Étapes détaillées
 
-1. **Démarrage & Téléchargement** : Le script Python se connecte au bucket GCS défini par `GCS_BUCKET_NAME` et télécharge l'intégralité du dossier contenant les requêtes `.sql` dans `/app/models`
+1. **Démarrage & Téléchargement** : Le script Python se connecte au bucket GCS défini par `GCS_BUCKET_NAME` et télécharge l'intégralité du préfixe `GCS_PREFIX` (défaut `models/`) dans `/app/models`, en préservant les sous-dossiers
 
-2. **Exécution dbt** : Le script lance `dbt run`. dbt compile les fichiers SQL téléchargés et exécute les transformations sur BigQuery
+2. **Installation des dépendances** : si un `packages.yml` a été expédié, le script lance `dbt deps`. Sinon l'étape est sautée
 
-3. **Analyse & Callback** : Le script croise les résultats (`run_results.json`) avec la configuration meta (`manifest.json`). Pour chaque succès, il déclenche l'appel API avec le token sécurisé
+3. **Exécution dbt** : le script lance `dbt run`, ou `dbt build` si `DBT_COMMAND=build`. dbt compile les fichiers SQL téléchargés et exécute les transformations sur BigQuery
+
+4. **Analyse & Callback** : Le script croise les résultats (`run_results.json`) avec la configuration meta (`manifest.json`). Pour chaque succès, il déclenche l'appel API avec le token sécurisé
+
+### Arborescence attendue dans le bucket
+
+Tout ce qui est sous `GCS_PREFIX` atterrit dans `/app/models`, **sauf** les sous-dossiers propres à dbt et `packages.yml`, qui vont à la racine du projet. C'est ce qui permet d'expédier des macros et des tests sans que dbt tente de les exécuter comme des modèles.
+
+| Chemin dans le bucket | Destination dans le conteneur | Rôle |
+|---|---|---|
+| `models/mon_modele.sql` | `/app/models/mon_modele.sql` | un modèle |
+| `models/staging/stg_x.sql` | `/app/models/staging/stg_x.sql` | un modèle, sous-dossier libre |
+| `models/schema.yml` | `/app/models/schema.yml` | tests génériques et documentation de colonnes |
+| `models/macros/ma_macro.sql` | `/app/macros/ma_macro.sql` | une macro |
+| `models/tests/mon_test.sql` | `/app/tests/mon_test.sql` | un test singulier |
+| `models/seeds/ref.csv` | `/app/seeds/ref.csv` | un seed |
+| `models/packages.yml` | `/app/packages.yml` | dépendances, par exemple `dbt_utils` |
+
+Les sous-dossiers reconnus sont `macros/`, `tests/`, `seeds/`, `snapshots/` et `analyses/`. Un dépôt existant qui ne contient que des `.sql` à plat garde exactement le comportement précédent.
+
+### Exécuter les tests
+
+`dbt run` ne lance aucun test. Pour que les tests déclarés dans les fichiers `.yml` s'exécutent, passer `DBT_COMMAND=build` : dbt construit les modèles et vérifie leurs tests **dans l'ordre du DAG**, si bien qu'un test en échec interrompt la construction des modèles en aval au lieu de les bâtir sur des données fausses.
+
+La valeur par défaut reste `run`, pour ne rien changer aux pipelines existants.
 
 ---
 
@@ -174,6 +198,17 @@ Le déploiement est géré par un **module Terraform générique**.
 - **`google_cloud_run_v2_job`** : Contrairement à un "Service", le "Job" est conçu pour des tâches qui ont un début et une fin (pas d'écoute de port HTTP)
 
 ### Variables d'environnement
+
+| Variable | Défaut | Rôle |
+|---|---|---|
+| `GCS_BUCKET_NAME` | — | bucket des modèles, **requis** |
+| `GCS_PREFIX` | `models/` | préfixe téléchargé |
+| `DBT_COMMAND` | `run` | `run` ou `build`. `build` exécute aussi les tests |
+| `BQ_DBT_TARGET_DATASET` | `dbt_default` | dataset cible du profil, base du médaillon |
+| `BQ_LOCATION` | `EU` | localisation BigQuery |
+| `API_CALLBACK_URL` | vide | publication data.gouv.nc, facultatif |
+| `API_TOKEN_SECRET` | vide | chemin du secret portant le token d'API |
+
 
 | Variable | Description |
 |----------|-------------|

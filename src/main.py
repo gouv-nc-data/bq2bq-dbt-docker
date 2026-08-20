@@ -29,6 +29,17 @@ from google.cloud import storage
 BUCKET_NAME = os.environ.get("GCS_BUCKET_NAME")
 GCS_PREFIX = os.environ.get("GCS_PREFIX", "models/")
 
+# Sous-dossiers dbt reconnus : un fichier situé sous l'un d'eux dans le bucket
+# est déposé à la racine du projet dbt et non dans models/. Permet d'expédier
+# des macros et des tests singuliers en plus des modèles, sans que dbt tente de
+# les exécuter comme des modèles.
+DBT_RESOURCE_DIRS = ("macros/", "tests/", "seeds/", "snapshots/", "analyses/")
+DBT_ROOT_FILES = ("packages.yml", "package-lock.yml")
+
+# "run" (défaut, comportement historique) ou "build" pour exécuter aussi les
+# tests dans l'ordre du DAG.
+DBT_COMMAND = os.environ.get("DBT_COMMAND", "run")
+
 # API Configuration
 API_CALLBACK_URL = os.environ.get("API_CALLBACK_URL", "")
 API_TOKEN_SECRET = os.environ.get("API_TOKEN_SECRET", "")
@@ -99,7 +110,13 @@ def download_models_from_gcs() -> int:
     for blob in files:
         # Remove prefix to get relative path
         relative_path = blob.name[len(GCS_PREFIX):] if blob.name.startswith(GCS_PREFIX) else blob.name
-        local_path = MODELS_DIR / relative_path
+
+        # Les macros, tests singuliers, seeds et packages.yml vont à la racine du
+        # projet ; tout le reste dans models/ (comportement historique).
+        if relative_path.startswith(DBT_RESOURCE_DIRS) or relative_path in DBT_ROOT_FILES:
+            local_path = DBT_PROJECT_DIR / relative_path
+        else:
+            local_path = MODELS_DIR / relative_path
 
         # Create subdirectories if needed
         local_path.parent.mkdir(parents=True, exist_ok=True)
@@ -116,21 +133,51 @@ def download_models_from_gcs() -> int:
 # dbt Execution
 # =============================================================================
 
-def run_dbt() -> bool:
-    """Execute dbt run and return success status."""
-    logger.info("Running dbt...")
+def run_dbt_deps() -> bool:
+    """Install dbt packages, only if a packages.yml was shipped in the bucket."""
+    if not (DBT_PROJECT_DIR / "packages.yml").exists():
+        return True
 
+    logger.info("packages.yml détecté, running dbt deps...")
     result = subprocess.run(
-        ["dbt", "run", "--project-dir", str(DBT_PROJECT_DIR)],
+        ["dbt", "deps", "--project-dir", str(DBT_PROJECT_DIR)],
         capture_output=False,
         text=True,
     )
 
     if result.returncode != 0:
-        logger.error(f"dbt run failed with exit code {result.returncode}")
+        logger.error(f"dbt deps failed with exit code {result.returncode}")
         return False
 
-    logger.info("dbt run completed successfully")
+    logger.info("dbt deps completed successfully")
+    return True
+
+
+def run_dbt() -> bool:
+    """Execute dbt and return success status.
+
+    DBT_COMMAND vaut "run" par défaut, ce qui préserve le comportement
+    historique. Le passer à "build" exécute les modèles ET leurs tests dans
+    l'ordre du DAG : un test en échec arrête la construction des modèles en
+    aval au lieu de les bâtir sur des données fausses.
+    """
+    if DBT_COMMAND not in ("run", "build"):
+        logger.error(f"DBT_COMMAND invalide: {DBT_COMMAND!r} (attendu: 'run' ou 'build')")
+        return False
+
+    logger.info(f"Running dbt {DBT_COMMAND}...")
+
+    result = subprocess.run(
+        ["dbt", DBT_COMMAND, "--project-dir", str(DBT_PROJECT_DIR)],
+        capture_output=False,
+        text=True,
+    )
+
+    if result.returncode != 0:
+        logger.error(f"dbt {DBT_COMMAND} failed with exit code {result.returncode}")
+        return False
+
+    logger.info(f"dbt {DBT_COMMAND} completed successfully")
     return True
 
 
@@ -201,6 +248,8 @@ def process_results() -> tuple[int, int]:
     success_count = 0
     fail_count = 0
 
+    # Avec DBT_COMMAND=build, run_results contient aussi les noeuds de test.
+    # Ils n'ont pas de meta.api_trigger_param et sont donc ignorés plus bas.
     for result in run_results.get("results", []):
         unique_id = result.get("unique_id", "")
         status = result.get("status", "")
@@ -256,7 +305,11 @@ def main():
         logger.warning("No models to process, exiting")
         sys.exit(0)
 
-    # Step 2: Run dbt
+    # Step 2: Install packages if any, then run dbt
+    if not run_dbt_deps():
+        logger.error("dbt deps failed")
+        sys.exit(1)
+
     if not run_dbt():
         logger.error("dbt execution failed")
         sys.exit(1)
